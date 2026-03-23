@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Human Reaction Time Tester</title>
+link rel="icon" type="image/x-icon" href="Bolt.jpg">
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --card-bg: #1e1e1e;
+            --accent-blue: #00d2ff;
+            --accent-green: #00ff88;
+            --accent-red: #ff416c;
+            --text-main: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Game Area */
+        #game-area {
+            width: 90%;
+            max-width: 600px;
+            height: 400px;
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .idle { background: var(--card-bg); border-color: var(--accent-blue) !important; }
+        .waiting { background: var(--accent-red); color: white; }
+        .ready { background: var(--accent-green); color: #000; font-weight: bold; }
+
+        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; pointer-events: none; }
+        p { font-size: 1.1rem; opacity: 0.8; pointer-events: none; }
+
+        /* Stats */
+        #stats-container {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 15px 25px;
+            border-radius: 16px;
+            flex: 1;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .stat-label { font-size: 0.8rem; text-transform: uppercase; color: #888; letter-spacing: 1px; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--accent-blue); }
+        #best-score { color: var(--accent-green); }
+
+        /* History List */
+        #history {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-area" class="idle">
+        <h1 id="main-text">Reaction Test</h1>
+        <p id="sub-text">Click to Start</p>
+    </div>
+
+    <div id="stats-container">
+        <div class="stat-card">
+            <div class="stat-label">Last Score</div>
+            <div id="last-score" class="stat-value">--</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Personal Best</div>
+            <div id="best-score" class="stat-value">--</div>
+        </div>
+    </div>
+
+    <div id="history">Recent: <span id="history-list">None</span></div>
+
+    <script>
+        const gameArea = document.getElementById('game-area');
+        const mainText = document.getElementById('main-text');
+        const subText = document.getElementById('sub-text');
+        const lastScoreDisplay = document.getElementById('last-score');
+        const bestScoreDisplay = document.getElementById('best-score');
+        const historyDisplay = document.getElementById('history-list');
+
+        let state = 'IDLE';
+        let timer;
+        let startTime;
+        let scores = [];
+
+        // Load High Score from Memory
+        let highScore = localStorage.getItem('reactionHighScore') || Infinity;
+        if (highScore !== Infinity) {
+            bestScoreDisplay.innerText = `${highScore}ms`;
+        }
+
+        gameArea.addEventListener('mousedown', handleInteraction);
+
+        function handleInteraction() {
+            if (state === 'IDLE') {
+                startWaiting();
+            } else if (state === 'WAITING') {
+                failEarly();
+            } else if (state === 'READY') {
+                finishTest();
+            }
+        }
+
+        function startWaiting() {
+            state = 'WAITING';
+            gameArea.className = 'waiting';
+            mainText.innerText = 'Wait for Green...';
+            subText.innerText = 'Don\'t click yet!';
+            
+            const delay = Math.random() * 3000 + 1500; // 1.5s to 4.5s
+            timer = setTimeout(() => {
+                state = 'READY';
+                gameArea.className = 'ready';
+                mainText.innerText = 'CLICK NOW!';
+                startTime = Date.now();
+            }, delay);
+        }
+
+        function failEarly() {
+            clearTimeout(timer);
+            state = 'IDLE';
+            gameArea.className = 'idle';
+            mainText.innerText = 'Too Fast!';
+            subText.innerText = 'Wait for the green screen next time.';
+        }
+
+        function finishTest() {
+            const reactionTime = Date.now() - startTime;
+            state = 'IDLE';
+            gameArea.className = 'idle';
+            
+            mainText.innerText = `${reactionTime} ms`;
+            subText.innerText = 'Click to try again';
+            
+            updateScores(reactionTime);
+        }
+
+        function updateScores(time) {
+            // Update Last Score
+            lastScoreDisplay.innerText = `${time}ms`;
+
+            // Update Best Score
+            if (time < highScore) {
+                highScore = time;
+                localStorage.setItem('reactionHighScore', highScore);
+                bestScoreDisplay.innerText = `${highScore}ms`;
+                bestScoreDisplay.style.color = 'var(--accent-green)';
+            }
+
+            // Update History List
+            scores.unshift(time);
+            if (scores.length > 5) scores.pop();
+            historyDisplay.innerText = scores.join('ms, ') + 'ms';
+        }
+    </script>
+</body>
+</html>
